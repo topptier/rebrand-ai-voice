@@ -3,6 +3,7 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { CallActivity } from "@/components/dashboard/CallActivity";
 import { ClientManagement } from "@/components/dashboard/ClientManagement";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { AppointmentBooking } from "@/components/dashboard/AppointmentBooking";
 
 const Index = () => {
   return (
@@ -27,10 +28,13 @@ const Index = () => {
           <QuickActions />
           
           {/* Main Content Grid */}
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-2">
             <CallActivity />
-            <ClientManagement />
+            <AppointmentBooking />
           </div>
+          
+          {/* Client Management */}
+          <ClientManagement />
         </div>
       </main>
     </div>
