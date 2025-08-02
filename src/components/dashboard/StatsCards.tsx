@@ -1,52 +1,64 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, Calendar, DollarSign, Users, TrendingUp, Clock } from "lucide-react";
-
-const stats = [
-  {
-    title: "Active Calls",
-    value: "24",
-    change: "+12% from yesterday",
-    icon: Phone,
-    trend: "up"
-  },
-  {
-    title: "Appointments Booked",
-    value: "156",
-    change: "+23% from last week",
-    icon: Calendar,
-    trend: "up"
-  },
-  {
-    title: "Revenue Collected",
-    value: "$12,847",
-    change: "+8% from last month",
-    icon: DollarSign,
-    trend: "up"
-  },
-  {
-    title: "AI Accuracy",
-    value: "94.2%",
-    change: "+2.1% improvement",
-    icon: TrendingUp,
-    trend: "up"
-  },
-  {
-    title: "Active Clients",
-    value: "48",
-    change: "+5 new this month",
-    icon: Users,
-    trend: "up"
-  },
-  {
-    title: "Avg Response Time",
-    value: "0.8s",
-    change: "-0.2s improvement",
-    icon: Clock,
-    trend: "up"
-  }
-];
+import { useCalls } from "@/hooks/useCalls";
+import { useAppointments } from "@/hooks/useAppointments";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const StatsCards = () => {
+  const { calls, loading: callsLoading } = useCalls();
+  const { stats: appointmentStats, loading: appointmentsLoading } = useAppointments();
+  const { profile } = useAuth();
+
+  const activeCalls = calls.filter(call => call.call_status === 'in_progress').length;
+  const totalCalls = calls.length;
+  const avgResponseTime = calls.length > 0 ? 
+    (calls.reduce((acc, call) => acc + (call.duration_seconds || 0), 0) / calls.length / 60).toFixed(1) : 0;
+
+  const stats = [
+    {
+      title: "Active Calls",
+      value: callsLoading ? "..." : activeCalls.toString(),
+      change: `${totalCalls} total calls`,
+      icon: Phone,
+      trend: "up"
+    },
+    {
+      title: "Appointments Today",
+      value: appointmentsLoading ? "..." : appointmentStats.confirmed.toString(),
+      change: `${appointmentStats.total} total`,
+      icon: Calendar,
+      trend: "up"
+    },
+    {
+      title: "Completion Rate",
+      value: callsLoading ? "..." : `${Math.round((calls.filter(c => c.call_status === 'completed').length / Math.max(totalCalls, 1)) * 100)}%`,
+      change: "Call success rate",
+      icon: TrendingUp,
+      trend: "up"
+    },
+    {
+      title: "Organization",
+      value: profile?.role === 'super_admin' ? "All Clients" : "Single Tenant",
+      change: profile?.role || "Loading...",
+      icon: Users,
+      trend: "up"
+    },
+    {
+      title: "Avg Call Duration",
+      value: callsLoading ? "..." : `${avgResponseTime}m`,
+      change: "Per call average",
+      icon: Clock,
+      trend: "up"
+    },
+    {
+      title: "Scheduled Appointments",
+      value: appointmentsLoading ? "..." : appointmentStats.scheduled.toString(),
+      change: `${appointmentStats.cancelled} cancelled`,
+      icon: Calendar,
+      trend: "up"
+    }
+  ];
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {stats.map((stat, index) => {
