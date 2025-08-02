@@ -1,13 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
 
-// For Lovable's native Supabase integration, these should be automatically available
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL || ''
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || ''
+// Temporary fallback values for development - these will be replaced when Supabase is properly connected
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
+                    import.meta.env.SUPABASE_URL || 
+                    'https://placeholder.supabase.co' // Temporary placeholder
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase configuration missing. Please ensure Supabase is properly connected to your Lovable project.')
-  console.log('Available env vars:', Object.keys(import.meta.env))
-}
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
+                    import.meta.env.SUPABASE_ANON_KEY || 
+                    'placeholder-key' // Temporary placeholder
+
+// Log configuration status
+console.log('Supabase configuration:', {
+  hasUrl: !!import.meta.env.VITE_SUPABASE_URL,
+  hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+  availableEnvVars: Object.keys(import.meta.env)
+});
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
