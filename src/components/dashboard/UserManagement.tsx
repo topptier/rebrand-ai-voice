@@ -10,7 +10,7 @@ interface UserProfile {
   id: string;
   email: string;
   full_name: string;
-  role: 'super_admin' | 'org_admin' | 'agent' | 'client';
+  role: 'super_admin' | 'org_admin' | 'agent' | 'user';
   is_active: boolean;
   organization_id: string;
   created_at: string;
@@ -24,7 +24,7 @@ const getRoleColor = (role: string) => {
       return "bg-primary text-primary-foreground";
     case "agent":
       return "bg-accent text-accent-foreground";
-    case "client":
+    case "user":
       return "bg-secondary text-secondary-foreground";
     default:
       return "bg-muted text-muted-foreground";
@@ -67,7 +67,7 @@ export const UserManagement = () => {
       if (profile?.role === 'org_admin') {
         // Org admins can only see users in their organization
         query = query.eq('organization_id', profile.organization_id);
-      } else if (profile?.role === 'agent' || profile?.role === 'client') {
+      } else if (profile?.role === 'agent' || profile?.role === 'user') {
         // Agents and clients can only see themselves
         query = query.eq('id', profile.id);
       }

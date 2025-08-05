@@ -1,20 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Temporary fallback values for development - these will be replaced when Supabase is properly connected
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
-                    import.meta.env.SUPABASE_URL || 
-                    'https://placeholder.supabase.co' // Temporary placeholder
-
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
-                    import.meta.env.SUPABASE_ANON_KEY || 
-                    'placeholder-key' // Temporary placeholder
-
-// Log configuration status
-console.log('Supabase configuration:', {
-  hasUrl: !!import.meta.env.VITE_SUPABASE_URL,
-  hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
-  availableEnvVars: Object.keys(import.meta.env)
-});
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -53,7 +40,7 @@ export type Database = {
           organization_id: string
           email: string
           full_name: string
-          role: 'super_admin' | 'org_admin' | 'agent' | 'client'
+          role: 'super_admin' | 'org_admin' | 'agent' | 'user'
           phone: string | null
           avatar_url: string | null
           is_active: boolean
@@ -65,7 +52,7 @@ export type Database = {
           organization_id: string
           email: string
           full_name: string
-          role?: 'super_admin' | 'org_admin' | 'agent' | 'client'
+          role?: 'super_admin' | 'org_admin' | 'agent' | 'user'
           phone?: string | null
           avatar_url?: string | null
           is_active?: boolean
@@ -77,7 +64,7 @@ export type Database = {
           organization_id?: string
           email?: string
           full_name?: string
-          role?: 'super_admin' | 'org_admin' | 'agent' | 'client'
+          role?: 'super_admin' | 'org_admin' | 'agent' | 'user'
           phone?: string | null
           avatar_url?: string | null
           is_active?: boolean

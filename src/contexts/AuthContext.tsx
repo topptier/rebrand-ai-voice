@@ -8,7 +8,7 @@ interface UserProfile {
   organization_id: string
   email: string
   full_name: string
-  role: 'super_admin' | 'org_admin' | 'agent' | 'client'
+  role: 'super_admin' | 'org_admin' | 'agent' | 'user'
   phone: string | null
   avatar_url: string | null
   is_active: boolean
@@ -140,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email,
             full_name: fullName,
             organization_id: organizationId,
-            role: 'client', // Default role
+            role: 'user', // Default role
           })
 
         if (profileError) {
