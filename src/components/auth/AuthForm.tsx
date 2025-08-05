@@ -1,15 +1,16 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Phone, Mail, Building2 } from 'lucide-react'
+import { Phone, Mail, Building2, Loader2 } from 'lucide-react'
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -30,15 +31,40 @@ const signUpSchema = z.object({
 type SignInForm = z.infer<typeof signInSchema>
 type SignUpForm = z.infer<typeof signUpSchema>
 
-const mockOrganizations = [
-  { id: '1', name: 'Acme Corp' },
-  { id: '2', name: 'TechStart Inc' },
-  { id: '3', name: 'Global Solutions' },
-]
+interface Organization {
+  id: string
+  name: string
+}
 
 export const AuthForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [loadingOrgs, setLoadingOrgs] = useState(true)
   const { signIn, signUp } = useAuth()
+
+  useEffect(() => {
+    fetchOrganizations()
+  }, [])
+
+  const fetchOrganizations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .order('name')
+
+      if (error) {
+        console.error('Error fetching organizations:', error)
+        return
+      }
+
+      setOrganizations(data || [])
+    } catch (error) {
+      console.error('Error fetching organizations:', error)
+    } finally {
+      setLoadingOrgs(false)
+    }
+  }
 
   const signInForm = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
@@ -183,13 +209,24 @@ export const AuthForm: React.FC = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="organization">Organization</Label>
-                    <Select onValueChange={(value) => signUpForm.setValue('organizationId', value)}>
+                    <Select 
+                      onValueChange={(value) => signUpForm.setValue('organizationId', value)}
+                      disabled={loadingOrgs}
+                    >
                       <SelectTrigger>
-                        <Building2 className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Select your organization" />
+                        {loadingOrgs ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Building2 className="h-4 w-4 mr-2" />
+                        )}
+                        <SelectValue placeholder={
+                          loadingOrgs ? "Loading organizations..." : 
+                          organizations.length === 0 ? "No organizations available" :
+                          "Select your organization"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockOrganizations.map((org) => (
+                        {organizations.map((org) => (
                           <SelectItem key={org.id} value={org.id}>
                             {org.name}
                           </SelectItem>
@@ -199,6 +236,11 @@ export const AuthForm: React.FC = () => {
                     {signUpForm.formState.errors.organizationId && (
                       <p className="text-sm text-destructive">
                         {signUpForm.formState.errors.organizationId.message}
+                      </p>
+                    )}
+                    {!loadingOrgs && organizations.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No organizations found. Please contact your administrator.
                       </p>
                     )}
                   </div>
