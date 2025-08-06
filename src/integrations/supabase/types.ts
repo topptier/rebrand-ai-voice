@@ -67,9 +67,7 @@ export type Database = {
     }
     Functions: {
       add_user_to_organization: {
-        Args:
-          | { org_id: string; user_email: string; user_role?: string }
-          | { user_email: string; org_id: string; user_role?: string }
+        Args: { org_id: string; user_email: string; user_role?: string }
         Returns: boolean
       }
       create_organization: {
