@@ -22,7 +22,7 @@ const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  organizationId: z.string().min(1, 'Please select an organization'),
+  organizationId: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -88,7 +88,7 @@ export const AuthForm: React.FC = () => {
   const handleSignUp = async (data: SignUpForm) => {
     setIsLoading(true)
     try {
-      await signUp(data.email, data.password, data.fullName, data.organizationId)
+      await signUp(data.email, data.password, data.fullName, data.organizationId || null)
     } catch (error) {
       // Error handled by auth context
     } finally {
@@ -208,7 +208,7 @@ export const AuthForm: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="organization">Organization</Label>
+                    <Label htmlFor="organization">Organization (Optional)</Label>
                     <Select 
                       onValueChange={(value) => signUpForm.setValue('organizationId', value)}
                       disabled={loadingOrgs}
@@ -221,8 +221,7 @@ export const AuthForm: React.FC = () => {
                         )}
                         <SelectValue placeholder={
                           loadingOrgs ? "Loading organizations..." : 
-                          organizations.length === 0 ? "No organizations available" :
-                          "Select your organization"
+                          "Select an organization (optional)"
                         } />
                       </SelectTrigger>
                       <SelectContent>
@@ -238,11 +237,9 @@ export const AuthForm: React.FC = () => {
                         {signUpForm.formState.errors.organizationId.message}
                       </p>
                     )}
-                    {!loadingOrgs && organizations.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        No organizations found. Please contact your administrator.
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      You can join an organization later or create your own.
+                    </p>
                   </div>
                   
                   <div className="space-y-2">

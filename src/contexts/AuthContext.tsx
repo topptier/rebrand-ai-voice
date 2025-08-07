@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast'
 
 interface UserProfile {
   id: string
-  organization_id: string
+  organization_id: string | null
   email: string
   full_name: string
   role: 'super_admin' | 'org_admin' | 'agent' | 'user'
@@ -20,7 +20,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, fullName: string, organizationId: string) => Promise<void>
+  signUp: (email: string, password: string, fullName: string, organizationId: string | null) => Promise<void>
   signOut: () => Promise<void>
   hasRole: (roles: string | string[]) => boolean
   isOrgAdmin: boolean
@@ -92,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Create a complete profile object with default values
       const profile: UserProfile = {
         id: data.id,
-        organization_id: data.organization_id || '',
+        organization_id: data.organization_id || null,
         email: '',
         full_name: '',
         role: (data.role as 'super_admin' | 'org_admin' | 'agent' | 'user') || 'user',
@@ -134,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, organizationId: string) => {
+  const signUp = async (email: string, password: string, fullName: string, organizationId: string | null) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
