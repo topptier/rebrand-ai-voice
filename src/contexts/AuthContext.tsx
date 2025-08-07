@@ -42,6 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  console.log('AuthContext - Current state:', { user: !!user, profile: !!profile, loading })
   const { toast } = useToast()
 
   useEffect(() => {

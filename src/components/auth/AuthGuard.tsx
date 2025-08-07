@@ -15,6 +15,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   fallback 
 }) => {
   const { user, profile, loading, hasRole } = useAuth()
+  
+  console.log('AuthGuard - user:', user, 'profile:', profile, 'loading:', loading)
 
   if (loading) {
     return (
