@@ -3,15 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Users, Settings, Plus, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Client {
   id: string;
   name: string;
-  business_type: string;
-  subscription_tier: string;
-  is_active: boolean;
+  business_type?: string;
+  subscription_tier?: string;
+  is_active?: boolean;
   total_calls?: number;
   created_at: string;
 }
@@ -47,13 +47,10 @@ export const ClientManagement = () => {
   const fetchClients = async () => {
     try {
       let query = supabase
-        .from('clients')
+        .from('organizations')
         .select(`
           id,
           name,
-          business_type,
-          subscription_tier,
-          is_active,
           created_at
         `)
         .order('created_at', { ascending: false });
@@ -136,7 +133,7 @@ export const ClientManagement = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">{client.name}</h3>
-                    <p className="text-sm text-muted-foreground">{client.business_type}</p>
+                    <p className="text-sm text-muted-foreground">{client.business_type || 'Organization'}</p>
                   </div>
                 </div>
                 
@@ -152,11 +149,11 @@ export const ClientManagement = () => {
                     <p className="text-xs text-muted-foreground">Created</p>
                   </div>
                   <div className="space-y-1">
-                    <Badge className={getPlanColor(client.subscription_tier)}>
-                      {client.subscription_tier}
+                    <Badge className={getPlanColor(client.subscription_tier || 'basic')}>
+                      {client.subscription_tier || 'basic'}
                     </Badge>
-                    <Badge className={getStatusColor(client.is_active)}>
-                      {client.is_active ? 'active' : 'inactive'}
+                    <Badge className={getStatusColor(client.is_active ?? true)}>
+                      {client.is_active ?? true ? 'active' : 'inactive'}
                     </Badge>
                   </div>
                   <div className="flex space-x-2">

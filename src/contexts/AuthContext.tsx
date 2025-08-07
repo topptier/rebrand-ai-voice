@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
 interface UserProfile {
@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('id, organization_id, role, created_at')
         .eq('id', userId)
         .single()
 
@@ -87,7 +87,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return
       }
 
-      setProfile(data)
+      // Create a complete profile object with default values
+      const profile: UserProfile = {
+        id: data.id,
+        organization_id: data.organization_id || '',
+        email: '',
+        full_name: '',
+        role: (data.role as 'super_admin' | 'org_admin' | 'agent' | 'user') || 'user',
+        phone: null,
+        avatar_url: null,
+        is_active: true
+      }
+      
+      setProfile(profile)
     } catch (error) {
       console.error('Error fetching profile:', error)
     } finally {

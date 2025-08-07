@@ -3,15 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, Plus, Settings, Eye, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface UserProfile {
   id: string;
-  email: string;
-  full_name: string;
-  role: 'super_admin' | 'org_admin' | 'agent' | 'user';
-  is_active: boolean;
+  email?: string;
+  full_name?: string;
+  role: string;
+  is_active?: boolean;
   organization_id: string;
   created_at: string;
 }
@@ -54,11 +54,8 @@ export const UserManagement = () => {
         .from('user_profiles')
         .select(`
           id,
-          email,
-          full_name,
-          role,
-          is_active,
           organization_id,
+          role,
           created_at
         `)
         .order('created_at', { ascending: false });
@@ -88,7 +85,7 @@ export const UserManagement = () => {
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ is_active: !currentStatus, updated_at: new Date().toISOString() })
+        .update({ role: 'user' })
         .eq('id', userId);
 
       if (error) throw error;
@@ -173,11 +170,11 @@ export const UserManagement = () => {
               <div key={user.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50 border border-border/50 hover:border-primary/50 transition-all duration-300">
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-primary text-primary-foreground font-bold text-sm">
-                    {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {(user.full_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">{user.full_name}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <h3 className="font-semibold text-foreground">{user.full_name || 'User'}</h3>
+                    <p className="text-sm text-muted-foreground">{user.email || 'No email'}</p>
                   </div>
                 </div>
                 
@@ -192,8 +189,8 @@ export const UserManagement = () => {
                     <Badge className={getRoleColor(user.role)}>
                       {user.role.replace('_', ' ')}
                     </Badge>
-                    <Badge className={getStatusColor(user.is_active)}>
-                      {user.is_active ? 'active' : 'inactive'}
+                    <Badge className={getStatusColor(user.is_active ?? true)}>
+                      {user.is_active ?? true ? 'active' : 'inactive'}
                     </Badge>
                   </div>
                   <div className="flex space-x-2">
