@@ -10,6 +10,8 @@ import {
   Palette,
   Shield
 } from "lucide-react";
+import { useCalls } from "@/hooks/useCalls";
+import { useToast } from "@/components/ui/use-toast";
 
 const actions = [
   {
@@ -71,6 +73,16 @@ const actions = [
 ];
 
 export const QuickActions = () => {
+  const { simulateCallFlow } = useCalls();
+  const { toast } = useToast();
+
+  const handleActionClick = (title: string) => {
+    if (title === "Test Call Flow") {
+      simulateCallFlow();
+      toast({ title: "Demo started", description: "Simulating call flow now" });
+    }
+  };
+
   return (
     <Card className="bg-gradient-card border-border shadow-card-custom">
       <CardHeader>
@@ -85,6 +97,7 @@ export const QuickActions = () => {
                 key={index}
                 variant={action.variant}
                 className="h-auto p-4 flex flex-col items-center space-y-2"
+                onClick={() => handleActionClick(action.title)}
               >
                 <Icon className={`h-6 w-6 ${action.color}`} />
                 <div className="text-center">

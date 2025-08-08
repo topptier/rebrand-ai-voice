@@ -55,9 +55,15 @@ export const ClientManagement = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // If not super admin, only show own organization's data
       if (profile?.role !== 'super_admin') {
-        query = query.eq('id', profile?.organization_id);
+        if (profile?.organization_id) {
+          query = query.eq('id', profile.organization_id);
+        } else {
+          // No organization assigned: show no clients instead of bad filter
+          setClients([])
+          setLoading(false)
+          return
+        }
       }
 
       const { data, error } = await query;
