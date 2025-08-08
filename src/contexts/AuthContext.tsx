@@ -47,28 +47,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast()
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Listen for auth changes FIRST
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+
       if (session?.user) {
-        fetchUserProfile(session.user.id)
+        setLoading(true)
+        // Defer Supabase calls to avoid deadlocks in the auth callback
+        setTimeout(() => {
+          fetchUserProfile(session.user!.id)
+        }, 0)
       } else {
+        setProfile(null)
         setLoading(false)
       }
     })
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
-      
       if (session?.user) {
-        await fetchUserProfile(session.user.id)
+        setLoading(true)
+        fetchUserProfile(session.user.id)
       } else {
-        setProfile(null)
         setLoading(false)
       }
     })
@@ -82,28 +87,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('user_profiles')
         .select('id, organization_id, role, created_at')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching profile:', error)
-        return
       }
 
-      // Create a complete profile object with default values
-      const profile: UserProfile = {
-        id: data.id,
-        organization_id: data.organization_id || null,
-        email: '',
-        full_name: '',
-        role: (data.role as 'super_admin' | 'org_admin' | 'agent' | 'user') || 'user',
-        phone: null,
-        avatar_url: null,
-        is_active: true
+      let row = data as { id: string; organization_id: string | null; role: string } | null
+
+      // If no profile exists, create a minimal one for this user
+      if (!row) {
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({ id: userId, role: 'user' })
+
+        if (insertError) {
+          console.error('Error creating missing profile:', insertError)
+        } else {
+          row = { id: userId, organization_id: null, role: 'user' }
+        }
       }
-      
-      setProfile(profile)
+
+      if (row) {
+        const profile: UserProfile = {
+          id: row.id,
+          organization_id: row.organization_id || null,
+          email: '',
+          full_name: '',
+          role: (row.role as 'super_admin' | 'org_admin' | 'agent' | 'user') || 'user',
+          phone: null,
+          avatar_url: null,
+          is_active: true,
+        }
+        setProfile(profile)
+      }
     } catch (error) {
-      console.error('Error fetching profile:', error)
+      console.error('Error fetching/creating profile:', error)
     } finally {
       setLoading(false)
     }

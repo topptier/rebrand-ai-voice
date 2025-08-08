@@ -30,8 +30,20 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     )
   }
 
-  if (!user || !profile) {
+  if (!user) {
     return <AuthForm />
+  }
+
+  if (user && !profile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    )
   }
 
   if (requiredRoles.length > 0 && !hasRole(requiredRoles)) {
