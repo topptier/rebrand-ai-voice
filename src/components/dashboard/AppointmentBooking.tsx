@@ -93,7 +93,7 @@ export const AppointmentBooking = () => {
   }
 
   const upcomingAppointments = appointments
-    .filter(apt => ['scheduled', 'confirmed'].includes(apt.appointment_status))
+    .filter(apt => ['scheduled', 'confirmed'].includes(apt.status))
     .slice(0, 5);
 
   return (
@@ -140,7 +140,8 @@ export const AppointmentBooking = () => {
             </div>
           ) : (
             upcomingAppointments.map((appointment) => {
-              const StatusIcon = getStatusIcon(appointment.appointment_status);
+              const StatusIcon = getStatusIcon(appointment.status);
+              const appointmentDate = new Date(appointment.scheduled_at);
               return (
                 <div key={appointment.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50 border border-border/50 hover:border-primary/50 transition-all duration-300">
                   <div className="flex items-center space-x-4">
@@ -149,18 +150,18 @@ export const AppointmentBooking = () => {
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{appointment.customer_name}</p>
-                      <p className="text-sm text-muted-foreground">{appointment.service_type}</p>
+                      <p className="text-sm text-muted-foreground">{appointment.duration_minutes} minutes</p>
                       <div className="flex items-center gap-4 mt-1">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">
-                            {formatAppointmentDate(appointment.appointment_date)}
+                            {formatAppointmentDate(appointment.scheduled_at)}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">
-                            {appointment.appointment_time}
+                            {format(appointmentDate, 'h:mm a')}
                           </span>
                         </div>
                       </div>
@@ -181,26 +182,21 @@ export const AppointmentBooking = () => {
                   
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
-                      <Badge className={getStatusColor(appointment.appointment_status)}>
-                        {appointment.appointment_status}
+                      <Badge className={getStatusColor(appointment.status)}>
+                        {appointment.status}
                       </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {appointment.client?.name}
-                      </p>
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      {!appointment.reminder_sent && appointment.appointment_status === 'scheduled' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => sendReminder(appointment.id)}
-                        >
-                          <Bell className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => sendReminder(appointment.id)}
+                      >
+                        <Bell className="h-4 w-4" />
+                      </Button>
                       
-                      {appointment.appointment_status === 'scheduled' && (
+                      {appointment.status === 'scheduled' && (
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -210,7 +206,7 @@ export const AppointmentBooking = () => {
                         </Button>
                       )}
                       
-                      {['scheduled', 'confirmed'].includes(appointment.appointment_status) && (
+                      {['scheduled', 'confirmed'].includes(appointment.status) && (
                         <Button 
                           variant="ghost" 
                           size="sm"

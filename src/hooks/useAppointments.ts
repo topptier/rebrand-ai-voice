@@ -1,19 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
 
 export interface Appointment {
   id: string
-  client_id: string
-  client?: { name: string }
+  organization_id: string
   customer_name: string
   customer_phone: string
   customer_email: string
-  appointment_date: string
-  appointment_time: string
-  service_type: string
-  appointment_status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'scheduled'
-  reminder_sent?: boolean
+  scheduled_at: string
+  duration_minutes: number
+  status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
   notes?: string
   created_at: string
   updated_at: string
@@ -23,27 +21,14 @@ export interface AppointmentForm {
   customer_name: string
   customer_phone: string
   customer_email: string
-  appointment_date: string
-  appointment_time: string
-  service_type: string
+  scheduled_at: string
+  duration_minutes: number
   notes?: string
 }
 
 export const useAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [stats] = useState({
-    totalAppointments: 0,
-    scheduledAppointments: 0,
-    completedAppointments: 0,
-    cancelledAppointments: 0,
-    total: 0,
-    scheduled: 0,
-    confirmed: 0,
-    completed: 0,
-    cancelled: 0,
-    no_show: 0
-  })
   const { profile } = useAuth()
   const { toast } = useToast()
 
@@ -54,10 +39,23 @@ export const useAppointments = () => {
   }, [profile])
 
   const fetchAppointments = async () => {
+    if (!profile?.organization_id) {
+      setLoading(false)
+      return
+    }
+
     try {
-      // For now, return mock data since appointments table doesn't exist
-      const mockAppointments: Appointment[] = []
-      setAppointments(mockAppointments)
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .order('scheduled_at', { ascending: true })
+
+      if (error) {
+        throw error
+      }
+
+      setAppointments(data || [])
     } catch (error) {
       console.error('Error fetching appointments:', error)
       toast({
@@ -71,9 +69,28 @@ export const useAppointments = () => {
   }
 
   const createAppointment = async (appointmentData: AppointmentForm) => {
+    if (!profile?.organization_id) {
+      throw new Error('No organization ID found')
+    }
+
     try {
-      // Mock implementation - would need appointments table
-      console.log('Create appointment:', appointmentData)
+      const { error } = await supabase
+        .from('appointments')
+        .insert({
+          organization_id: profile.organization_id,
+          customer_name: appointmentData.customer_name,
+          customer_phone: appointmentData.customer_phone,
+          customer_email: appointmentData.customer_email,
+          scheduled_at: appointmentData.scheduled_at,
+          duration_minutes: appointmentData.duration_minutes,
+          notes: appointmentData.notes,
+          status: 'scheduled'
+        })
+
+      if (error) {
+        throw error
+      }
+
       toast({
         title: "Success",
         description: "Appointment created successfully",
@@ -90,10 +107,17 @@ export const useAppointments = () => {
     }
   }
 
-  const updateAppointmentStatus = async (appointmentId: string, status: Appointment['appointment_status']) => {
+  const updateAppointmentStatus = async (appointmentId: string, status: Appointment['status']) => {
     try {
-      // Mock implementation - would need appointments table
-      console.log('Update appointment status:', appointmentId, status)
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status })
+        .eq('id', appointmentId)
+
+      if (error) {
+        throw error
+      }
+
       toast({
         title: "Success",
         description: "Appointment status updated",
@@ -111,7 +135,7 @@ export const useAppointments = () => {
 
   const sendReminder = async (appointmentId: string) => {
     try {
-      // Mock implementation - would need appointments table
+      // Mock implementation for reminders - could integrate with email/SMS service
       console.log('Send reminder:', appointmentId)
       toast({
         title: "Success",
@@ -127,10 +151,27 @@ export const useAppointments = () => {
     }
   }
 
+  // Calculate stats from appointments
+  const stats = {
+    total: appointments.length,
+    scheduled: appointments.filter(a => a.status === 'scheduled').length,
+    confirmed: appointments.filter(a => a.status === 'confirmed').length,
+    completed: appointments.filter(a => a.status === 'completed').length,
+    cancelled: appointments.filter(a => a.status === 'cancelled').length,
+    no_show: appointments.filter(a => a.status === 'no_show').length,
+  }
+
   const deleteAppointment = async (appointmentId: string) => {
     try {
-      // Mock implementation - would need appointments table
-      console.log('Delete appointment:', appointmentId)
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', appointmentId)
+
+      if (error) {
+        throw error
+      }
+
       toast({
         title: "Success", 
         description: "Appointment deleted successfully",

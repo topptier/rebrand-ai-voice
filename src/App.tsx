@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { CallsProvider } from "@/hooks/useCalls";
 import Dashboard from "./pages/Dashboard";
+import Appointments from "./pages/Appointments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,14 @@ const App = () => (
                 element={
                   <AuthGuard>
                     <Dashboard />
+                  </AuthGuard>
+                } 
+              />
+              <Route 
+                path="/appointments" 
+                element={
+                  <AuthGuard>
+                    <Appointments />
                   </AuthGuard>
                 } 
               />
