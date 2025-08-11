@@ -1,24 +1,35 @@
 import React, { useState, useEffect, createContext, useContext, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
 
 export interface Call {
   id: string
-  client_id: string
-  client?: { name: string }
-  caller_name: string
+  organization_id: string
+  twilio_call_sid?: string
   caller_phone: string
-  call_type: 'inbound' | 'outbound'
+  caller_name: string
+  direction: 'inbound' | 'outbound'
+  status: 'initiated' | 'ringing' | 'answered' | 'completed' | 'failed' | 'busy' | 'no_answer'
+  call_type?: 'appointment' | 'inquiry' | 'emergency' | 'support' | 'other'
+  start_time: string
+  end_time?: string
+  duration_seconds?: number
+  recording_url?: string
+  transcript?: string
+  escalated_to_human?: boolean
+  escalation_reason?: string
+  outcome?: 'appointment_booked' | 'information_provided' | 'payment_collected' | 'escalated' | 'voicemail' | 'hang_up'
+  notes?: string
+  created_at: string
+  updated_at: string
+  // Legacy compatibility fields
   call_status: 'pending' | 'in_progress' | 'completed' | 'missed' | 'voicemail'
   call_outcome?: string
   duration?: number
-  duration_seconds?: number
-  start_time: string
-  end_time?: string
-  notes?: string
   assigned_agent?: string
-  created_at: string
-  updated_at: string
+  // Relationship data  
+  organization?: { name: string }
 }
 
 export interface CallForm {
@@ -39,6 +50,7 @@ interface CallsContextValue {
   }
   fetchCalls: () => Promise<void>
   createCall: (callData: CallForm) => Promise<void>
+  updateCall: (callId: string, callData: CallForm) => Promise<void>
   updateCallStatus: (callId: string, status: Call['call_status'], duration?: number) => Promise<void>
   deleteCall: (callId: string) => Promise<void>
   transferCall: (callId: string, agentId: string) => Promise<void>
@@ -60,26 +72,65 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { toast } = useToast()
 
   useEffect(() => {
-    if (profile) {
+    if (profile?.organization_id) {
       fetchCalls()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
+  }, [profile?.organization_id])
 
   const recalcStats = (list: Call[]) => {
     const total = list.length
     const completed = list.filter(c => c.call_status === 'completed').length
-    const avg = list.reduce((acc, c) => acc + (c.duration || 0), 0) / (total || 1)
+    const avg = list.reduce((acc, c) => acc + (c.duration_seconds || 0), 0) / (total || 1)
     const conv = total > 0 ? (completed / total) * 100 : 0
     setStats({ totalCalls: total, completedCalls: completed, avgDuration: avg, conversionRate: conv })
   }
 
+  const processCallData = (call: any): Call => {
+    const statusMap: { [key: string]: Call['call_status'] } = {
+      'initiated': 'pending',
+      'ringing': 'pending', 
+      'answered': 'in_progress',
+      'completed': 'completed',
+      'failed': 'missed',
+      'busy': 'missed',
+      'no_answer': 'missed'
+    }
+
+    return {
+      ...call,
+      call_status: statusMap[call.status] || 'pending',
+      call_outcome: call.outcome,
+      duration: call.duration_seconds,
+      call_type: call.direction, // Map direction to call_type for compatibility
+      organization: call.organizations ? { name: call.organizations.name } : undefined,
+    }
+  }
+
   const fetchCalls = async () => {
+    if (!profile?.organization_id) {
+      setLoading(false)
+      return
+    }
+
     try {
-      // Still mock for now
-      const mockCalls: Call[] = []
-      setCalls(mockCalls)
-      recalcStats(mockCalls)
+      const { data, error } = await supabase
+        .from('calls')
+        .select(`
+          *,
+          organizations (
+            name
+          )
+        `)
+        .eq('organization_id', profile.organization_id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        throw error
+      }
+
+      const processedCalls = (data || []).map(processCallData)
+      setCalls(processedCalls)
+      recalcStats(processedCalls)
     } catch (error) {
       console.error('Error fetching calls:', error)
       toast({ title: 'Error', description: 'Failed to load calls', variant: 'destructive' })
@@ -89,26 +140,28 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const createCall = async (callData: CallForm) => {
+    if (!profile?.organization_id) {
+      throw new Error('No organization found')
+    }
+
     try {
-      // Mock insert
-      const now = new Date().toISOString()
-      const newCall: Call = {
-        id: crypto.randomUUID(),
-        client_id: 'demo-client',
-        client: { name: 'Demo Client' },
-        caller_name: callData.caller_name,
-        caller_phone: callData.caller_phone,
-        call_type: callData.call_type,
-        call_status: 'pending',
-        start_time: now,
-        created_at: now,
-        updated_at: now,
-        notes: callData.notes,
+      const { error } = await supabase
+        .from('calls')
+        .insert({
+          organization_id: profile.organization_id,
+          caller_name: callData.caller_name,
+          caller_phone: callData.caller_phone,
+          direction: callData.call_type,
+          status: 'initiated',
+          start_time: new Date().toISOString(),
+        })
+
+      if (error) {
+        throw error
       }
-      const next = [newCall, ...calls]
-      setCalls(next)
-      recalcStats(next)
+
       toast({ title: 'Success', description: 'Call logged successfully' })
+      await fetchCalls()
     } catch (error) {
       console.error('Error creating call:', error)
       toast({ title: 'Error', description: 'Failed to log call', variant: 'destructive' })
@@ -116,22 +169,75 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }
 
-  const updateCallStatus = async (callId: string, status: Call['call_status'], duration?: number) => {
+  const updateCall = async (callId: string, callData: CallForm) => {
+    if (!profile?.organization_id) {
+      throw new Error('No organization found')
+    }
+
     try {
-      const next = calls.map(c =>
-        c.id === callId
-          ? {
-              ...c,
-              call_status: status,
-              duration: duration ?? c.duration,
-              end_time: status === 'completed' || status === 'missed' ? new Date().toISOString() : c.end_time,
-              updated_at: new Date().toISOString(),
-            }
-          : c
-      )
-      setCalls(next)
-      recalcStats(next)
+      const { error } = await supabase
+        .from('calls')
+        .update({
+          caller_name: callData.caller_name,
+          caller_phone: callData.caller_phone,
+          direction: callData.call_type,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', callId)
+        .eq('organization_id', profile.organization_id)
+
+      if (error) {
+        throw error
+      }
+
+      toast({ title: 'Success', description: 'Call updated successfully' })
+      await fetchCalls()
+    } catch (error) {
+      console.error('Error updating call:', error)
+      toast({ title: 'Error', description: 'Failed to update call', variant: 'destructive' })
+      throw error
+    }
+  }
+
+  const updateCallStatus = async (callId: string, status: Call['call_status'], duration?: number) => {
+    if (!profile?.organization_id) {
+      throw new Error('No organization found')
+    }
+
+    try {
+      const statusMap: { [key in Call['call_status']]: string } = {
+        'pending': 'initiated',
+        'in_progress': 'answered',
+        'completed': 'completed',
+        'missed': 'failed',
+        'voicemail': 'completed'
+      }
+
+      const updateData: any = {
+        status: statusMap[status],
+        updated_at: new Date().toISOString(),
+      }
+
+      if (duration !== undefined) {
+        updateData.duration_seconds = duration
+      }
+
+      if (status === 'completed' || status === 'missed') {
+        updateData.end_time = new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('calls')
+        .update(updateData)
+        .eq('id', callId)
+        .eq('organization_id', profile.organization_id)
+
+      if (error) {
+        throw error
+      }
+
       toast({ title: 'Success', description: 'Call status updated' })
+      await fetchCalls()
     } catch (error) {
       console.error('Error updating call:', error)
       toast({ title: 'Error', description: 'Failed to update call', variant: 'destructive' })
@@ -139,11 +245,23 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const deleteCall = async (callId: string) => {
+    if (!profile?.organization_id) {
+      throw new Error('No organization found')
+    }
+
     try {
-      const next = calls.filter(c => c.id !== callId)
-      setCalls(next)
-      recalcStats(next)
+      const { error } = await supabase
+        .from('calls')
+        .delete()
+        .eq('id', callId)
+        .eq('organization_id', profile.organization_id)
+
+      if (error) {
+        throw error
+      }
+
       toast({ title: 'Success', description: 'Call deleted successfully' })
+      await fetchCalls()
     } catch (error) {
       console.error('Error deleting call:', error)
       toast({ title: 'Error', description: 'Failed to delete call', variant: 'destructive' })
@@ -209,6 +327,7 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stats,
     fetchCalls,
     createCall,
+    updateCall,
     updateCallStatus,
     deleteCall,
     transferCall,
