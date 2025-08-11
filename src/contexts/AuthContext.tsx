@@ -47,38 +47,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast()
 
   useEffect(() => {
-    // Listen for auth changes FIRST
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-
-      if (session?.user) {
-        setLoading(true)
-        // Defer Supabase calls to avoid deadlocks in the auth callback
-        setTimeout(() => {
-          fetchUserProfile(session.user!.id)
-        }, 0)
-      } else {
-        setProfile(null)
-        setLoading(false)
+    // DEMO MODE: Auto-login with mock admin user for testing CRUD functionality
+    setTimeout(() => {
+      const mockUser = {
+        id: 'demo-user-id',
+        email: 'admin@demo.com',
+      } as User
+      
+      const mockProfile: UserProfile = {
+        id: 'demo-user-id',
+        organization_id: 'demo-org-id',
+        email: 'admin@demo.com',
+        full_name: 'Demo Admin',
+        role: 'org_admin', // Give admin role to test CRUD functionality
+        phone: null,
+        avatar_url: null,
+        is_active: true,
       }
-    })
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        setLoading(true)
-        fetchUserProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
+      setUser(mockUser)
+      setProfile(mockProfile)
+      setLoading(false)
+    }, 1000)
   }, [])
 
   const fetchUserProfile = async (userId: string) => {

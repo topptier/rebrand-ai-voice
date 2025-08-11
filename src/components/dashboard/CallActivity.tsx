@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneIncoming, PhoneOutgoing, Clock, User, ArrowUpRight } from "lucide-react";
-import { useCalls } from "@/hooks/useCalls";
+import { Phone, PhoneIncoming, PhoneOutgoing, Clock, User, ArrowUpRight, Plus, Edit, Trash2 } from "lucide-react";
+import { useCalls, Call } from "@/hooks/useCalls";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from 'date-fns';
+import { CallModal } from "./CallModal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -32,7 +36,57 @@ const formatDuration = (seconds: number | null) => {
 };
 
 export const CallActivity = () => {
-  const { calls, loading, updateCallStatus, transferCall } = useCalls();
+  const { calls, loading, createCall, updateCall, updateCallStatus, deleteCall, transferCall } = useCalls();
+  const { isOrgAdmin } = useAuth();
+  
+  const [showModal, setShowModal] = useState(false);
+  const [editingCall, setEditingCall] = useState<Call | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingCall, setDeletingCall] = useState<Call | null>(null);
+  const [loading1, setLoading1] = useState(false);
+
+  const handleCreateCall = () => {
+    setEditingCall(null);
+    setShowModal(true);
+  };
+
+  const handleEditCall = (call: Call) => {
+    setEditingCall(call);
+    setShowModal(true);
+  };
+
+  const handleDeleteCall = (call: Call) => {
+    setDeletingCall(call);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingCall) return;
+    
+    setLoading1(true);
+    try {
+      await deleteCall(deletingCall.id);
+      setShowDeleteDialog(false);
+      setDeletingCall(null);
+    } catch (error) {
+      console.error('Failed to delete call:', error);
+    } finally {
+      setLoading1(false);
+    }
+  };
+
+  const handleSubmitCall = async (data: any) => {
+    setLoading1(true);
+    try {
+      if (editingCall) {
+        await updateCall(editingCall.id, data);
+      } else {
+        await createCall(data);
+      }
+    } finally {
+      setLoading1(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -74,10 +128,18 @@ export const CallActivity = () => {
             <Phone className="h-5 w-5 text-primary" />
             Recent Call Activity
           </CardTitle>
-          <Button variant="ghost" size="sm">
-            <ArrowUpRight className="h-4 w-4 mr-2" />
-            View All
-          </Button>
+          <div className="flex items-center gap-2">
+            {isOrgAdmin && (
+              <Button onClick={handleCreateCall} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Log Call
+              </Button>
+            )}
+            <Button variant="ghost" size="sm">
+              <ArrowUpRight className="h-4 w-4 mr-2" />
+              View All
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -89,7 +151,7 @@ export const CallActivity = () => {
             </div>
           ) : (
             calls.slice(0, 5).map((call) => {
-              const CallIcon = getCallIcon(call.call_type);
+              const CallIcon = getCallIcon(call.direction);
               return (
                 <div key={call.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:border-primary/50 transition-all duration-300">
                   <div className="flex items-center space-x-3">
@@ -99,7 +161,7 @@ export const CallActivity = () => {
                     <div>
                       <p className="font-medium text-foreground">{call.caller_name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {call.client?.name || 'Unknown Client'}
+                        {call.organization?.name || 'Unknown Organization'}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <User className="h-3 w-3 text-muted-foreground" />
@@ -122,15 +184,35 @@ export const CallActivity = () => {
                     <div className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
                     </div>
-                    {call.call_status === 'in_progress' && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => transferCall(call.id, 'Manual transfer from dashboard')}
-                      >
-                        Transfer
-                      </Button>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {call.call_status === 'in_progress' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => transferCall(call.id, 'Manual transfer from dashboard')}
+                        >
+                          Transfer
+                        </Button>
+                      )}
+                      {isOrgAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditCall(call)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCall(call)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -138,6 +220,26 @@ export const CallActivity = () => {
           )}
         </div>
       </CardContent>
+
+      <CallModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        call={editingCall}
+        onSubmit={handleSubmitCall}
+        loading={loading1}
+      />
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Call"
+        description={`Are you sure you want to delete the call from ${deletingCall?.caller_name}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        loading={loading1}
+        variant="destructive"
+      />
     </Card>
   );
 };

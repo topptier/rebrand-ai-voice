@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,16 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Bell
+  Bell,
+  Plus,
+  Edit,
+  Trash2
 } from "lucide-react";
-import { useAppointments } from "@/hooks/useAppointments";
+import { useAppointments, Appointment } from "@/hooks/useAppointments";
+import { useAuth } from "@/contexts/AuthContext";
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
+import { AppointmentModal } from "./AppointmentModal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -58,7 +65,57 @@ const formatAppointmentDate = (dateStr: string) => {
 };
 
 export const AppointmentBooking = () => {
-  const { appointments, stats, loading, updateAppointmentStatus, sendReminder } = useAppointments();
+  const { appointments, stats, loading, createAppointment, updateAppointment, updateAppointmentStatus, sendReminder, deleteAppointment } = useAppointments();
+  const { isOrgAdmin } = useAuth();
+  
+  const [showModal, setShowModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingAppointment, setDeletingAppointment] = useState<Appointment | null>(null);
+  const [loading1, setLoading1] = useState(false);
+
+  const handleCreateAppointment = () => {
+    setEditingAppointment(null);
+    setShowModal(true);
+  };
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setShowModal(true);
+  };
+
+  const handleDeleteAppointment = (appointment: Appointment) => {
+    setDeletingAppointment(appointment);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingAppointment) return;
+    
+    setLoading1(true);
+    try {
+      await deleteAppointment(deletingAppointment.id);
+      setShowDeleteDialog(false);
+      setDeletingAppointment(null);
+    } catch (error) {
+      console.error('Failed to delete appointment:', error);
+    } finally {
+      setLoading1(false);
+    }
+  };
+
+  const handleSubmitAppointment = async (data: any) => {
+    setLoading1(true);
+    try {
+      if (editingAppointment) {
+        await updateAppointment(editingAppointment.id, data);
+      } else {
+        await createAppointment(data);
+      }
+    } finally {
+      setLoading1(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -104,10 +161,18 @@ export const AppointmentBooking = () => {
             <Calendar className="h-5 w-5 text-primary" />
             Upcoming Appointments
           </CardTitle>
-          <Button variant="ghost" size="sm">
-            <ArrowUpRight className="h-4 w-4 mr-2" />
-            View All
-          </Button>
+          <div className="flex items-center gap-2">
+            {isOrgAdmin && (
+              <Button onClick={handleCreateAppointment} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Appointment
+              </Button>
+            )}
+            <Button variant="ghost" size="sm">
+              <ArrowUpRight className="h-4 w-4 mr-2" />
+              View All
+            </Button>
+          </div>
         </div>
         
         {/* Quick Stats */}
@@ -185,11 +250,11 @@ export const AppointmentBooking = () => {
                         {appointment.appointment_status}
                       </Badge>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {appointment.client?.name}
+                        {appointment.organization?.name || 'Unknown Org'}
                       </p>
                     </div>
                     
-                    <div className="flex flex-col gap-2">
+                    <div className="flex items-center space-x-2">
                       {!appointment.reminder_sent && appointment.appointment_status === 'scheduled' && (
                         <Button 
                           variant="ghost" 
@@ -219,6 +284,25 @@ export const AppointmentBooking = () => {
                           Complete
                         </Button>
                       )}
+
+                      {isOrgAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditAppointment(appointment)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAppointment(appointment)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -227,6 +311,26 @@ export const AppointmentBooking = () => {
           )}
         </div>
       </CardContent>
+
+      <AppointmentModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        appointment={editingAppointment}
+        onSubmit={handleSubmitAppointment}
+        loading={loading1}
+      />
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Appointment"
+        description={`Are you sure you want to delete the appointment for ${deletingAppointment?.customer_name}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        loading={loading1}
+        variant="destructive"
+      />
     </Card>
   );
 };
