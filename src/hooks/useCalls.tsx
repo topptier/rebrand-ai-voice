@@ -113,24 +113,69 @@ export const CallsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      const { data, error } = await supabase
-        .from('calls')
-        .select(`
-          *,
-          organizations (
-            name
-          )
-        `)
-        .eq('organization_id', profile.organization_id)
-        .order('created_at', { ascending: false })
+      // DEMO MODE: Mock some calls to show CRUD functionality
+      const mockCalls: Call[] = [
+        {
+          id: 'call-1',
+          organization_id: profile.organization_id,
+          caller_phone: '+1 (555) 111-2222',
+          caller_name: 'Alex Thompson',
+          direction: 'inbound',
+          status: 'completed',
+          start_time: new Date('2025-08-11T09:30:00').toISOString(),
+          end_time: new Date('2025-08-11T09:35:00').toISOString(),
+          duration_seconds: 300,
+          outcome: 'appointment_booked',
+          created_at: new Date('2025-08-11T09:30:00').toISOString(),
+          updated_at: new Date('2025-08-11T09:35:00').toISOString(),
+          // Legacy compatibility fields
+          call_status: 'completed',
+          call_outcome: 'appointment_booked',
+          duration: 300,
+          call_type: 'inbound',
+          organization: { name: 'Demo Healthcare Clinic' }
+        },
+        {
+          id: 'call-2',
+          organization_id: profile.organization_id,
+          caller_phone: '+1 (555) 333-4444',
+          caller_name: 'Maria Garcia',
+          direction: 'outbound',
+          status: 'completed',
+          start_time: new Date('2025-08-11T11:15:00').toISOString(),
+          end_time: new Date('2025-08-11T11:18:00').toISOString(),
+          duration_seconds: 180,
+          outcome: 'information_provided',
+          created_at: new Date('2025-08-11T11:15:00').toISOString(),
+          updated_at: new Date('2025-08-11T11:18:00').toISOString(),
+          // Legacy compatibility fields
+          call_status: 'completed',
+          call_outcome: 'information_provided',
+          duration: 180,
+          call_type: 'outbound',
+          organization: { name: 'Demo Healthcare Clinic' }
+        },
+        {
+          id: 'call-3',
+          organization_id: profile.organization_id,
+          caller_phone: '+1 (555) 555-6666',
+          caller_name: 'Robert Johnson',
+          direction: 'inbound',
+          status: 'answered',
+          start_time: new Date().toISOString(),
+          duration_seconds: 45,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          // Legacy compatibility fields
+          call_status: 'in_progress',
+          duration: 45,
+          call_type: 'inbound',
+          organization: { name: 'Demo Healthcare Clinic' }
+        }
+      ]
 
-      if (error) {
-        throw error
-      }
-
-      const processedCalls = (data || []).map(processCallData)
-      setCalls(processedCalls)
-      recalcStats(processedCalls)
+      setCalls(mockCalls)
+      recalcStats(mockCalls)
     } catch (error) {
       console.error('Error fetching calls:', error)
       toast({ title: 'Error', description: 'Failed to load calls', variant: 'destructive' })
