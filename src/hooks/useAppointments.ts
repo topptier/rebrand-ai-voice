@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
@@ -36,9 +36,9 @@ export const useAppointments = () => {
     if (profile) {
       fetchAppointments()
     }
-  }, [profile])
+  }, [profile, fetchAppointments])
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     if (!profile?.organization_id) {
       setLoading(false)
       return
@@ -66,7 +66,7 @@ export const useAppointments = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile?.organization_id, toast])
 
   const createAppointment = async (appointmentData: AppointmentForm) => {
     if (!profile?.organization_id) {
